@@ -11,7 +11,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <type_traits>
+#include <numeric>
 
 using namespace std;
 
@@ -181,11 +181,12 @@ private:
 
     static int ComputeAverageRating(const vector<int>& ratings)
     {
-        int rating_sum = 0;
-        for (const int rating : ratings)
-        {
-            rating_sum += rating;
-        }
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
+
+//        for (const int rating : ratings)
+//        {
+//            rating_sum += rating;
+//        }
         return rating_sum / static_cast<int>(ratings.size());
     }
 
