@@ -117,7 +117,8 @@ public:
         return documents_.size();
     }
 
-    tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
+    tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const
+    {
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words)
@@ -234,6 +235,12 @@ private:
     double ComputeWordInverseDocumentFreq(const string& word) const
     {
         return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
+//        size_t size = word_to_document_freqs_.at(word).size();
+//        auto del1 = 1.0 / word_to_document_freqs_.at(word).size();
+//        auto doccnt = GetDocumentCount();
+//        auto logg = log(4*1);
+//        auto res = log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
+//        return res;
     }
 
     template <typename T>
@@ -289,8 +296,9 @@ private:
 template <typename foo>
 void RunTestImpl(const foo f, const string& f_name)
 {
-        if (f)
-        cerr << f_name << " OK" << endl;
+    f();
+    if (f)
+    cerr << f_name << " OK" << endl;
 }
 #define RUN_TEST(func) RunTestImpl((func), #func)
 
@@ -396,24 +404,27 @@ void TestStatus()
     SearchServer server;
     server.SetStopWords("и в на"s);
 
-    server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
-    server.AddDocument(1, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {7, 2, 7});
+    server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::REMOVED, {8, -3});
+    server.AddDocument(1, "пушистый  кот пушистый хвост"s,       DocumentStatus::IRRELEVANT, {7, 2, 7});
     server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
     server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
-    const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s);
-    const int doc_id = 42;
-    const string content = "cat in the city"s;
-    const vector<int> ratings = {1, 2, 3};
-    tuple<vector<string>, DocumentStatus> matched_documents;
+    const auto found_docs_BANNED = server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::BANNED);
+    ASSERT(found_docs_BANNED.size() == 1);
+    ASSERT(found_docs_BANNED[0].id == 3);
+    ASSERT(found_docs_BANNED[0].rating == 9);
+    const auto found_docs_IRRELEVANT = server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::IRRELEVANT);
+    ASSERT(found_docs_IRRELEVANT.size() == 1);
+    ASSERT(found_docs_IRRELEVANT[0].id == 1);
+    ASSERT(found_docs_IRRELEVANT[0].rating == 5);
+    const auto found_docs_REMOVED = server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::REMOVED);
+    ASSERT(found_docs_REMOVED.size() == 1);
+    ASSERT(found_docs_REMOVED[0].id == 0);
+    ASSERT(found_docs_REMOVED[0].rating == 2);
+    const auto found_docs_ACTUAL = server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::ACTUAL);
+    ASSERT(found_docs_ACTUAL.size() == 1);
+    ASSERT(found_docs_ACTUAL[0].id == 2);
+    ASSERT(found_docs_ACTUAL[0].rating == -1);
 
-    {
-        SearchServer server;
-        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        matched_documents = server.MatchDocument("cat in"s, doc_id);
-        DocumentStatus status;
-        status = get<1>(matched_documents);
-        ASSERT(status == DocumentStatus::ACTUAL);
-    }
 }
 void TestPredicateFilter()
 {
@@ -442,11 +453,49 @@ void TestCorrectRelevanceCount()
     const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s);
     const Document& doc0 = found_docs.at(0);
     const Document& doc1 = found_docs.at(1);
+    const Document& doc2 = found_docs.at(2);
+    ASSERT_EQUAL(found_docs.size(), 3u);
+    int furry_cnt = 1;
+    double TF_furry = 0.5;
+    double IDF_furry = log(server.GetDocumentCount() * 1.0 / furry_cnt);
+    double relevevance_for_furry = (IDF_furry * TF_furry) + doc1.relevance; //doc1.relevance проверяется ниже, так что допустимо, на мой взгляд,
+    ASSERT_EQUAL(doc0.relevance, relevevance_for_furry);                    //для симуляции теста.
+    ASSERT(doc0.id == 1);
+    ASSERT(doc0.rating == 5);
 
-    if (abs(found_docs.at(0).relevance - found_docs.at(1).relevance) < 1e-6)
+    if ( doc0.relevance < EPSILON )
     {
-        ASSERT (doc0.relevance > doc1.relevance || doc0.rating > doc1.rating);
+        ASSERT(doc0.rating >= doc1.rating);
     }
+    else
+    {
+        ASSERT(doc0.relevance >= doc1.relevance);
+        //ASSERT(doc0.relevance <= doc1.relevance);  ASSERT выдаст ошибку, т.к. сортировка идет по убыванию.
+    }
+
+    int neat_cnt = 2;
+    double TF_neat = 0.25;
+    double IDF_neat = log(server.GetDocumentCount() * 1.0 / neat_cnt);
+    double relevevance_for_neat = IDF_neat * TF_neat;
+    ASSERT_EQUAL(doc1.relevance, relevevance_for_neat);
+    ASSERT(doc1.id == 0);
+    ASSERT(doc1.rating == 2);
+    if ( doc1.relevance < EPSILON )
+    {
+        ASSERT(doc1.rating >= doc2.rating);
+    }
+    else
+    {
+        ASSERT(doc1.relevance >= doc2.relevance);
+    }
+    int cat_cnt = 2;
+    double TF_cat = 0.25;
+    double IDF_cat = log(server.GetDocumentCount() * 1.0 / cat_cnt);
+    double relevevance_for_cat = IDF_cat * TF_cat;
+    ASSERT_EQUAL(doc2.relevance, relevevance_for_cat);
+    ASSERT(doc2.id == 2);
+    ASSERT(doc2.rating == -1);
+
 }
 
 void TestSearchServer()
@@ -456,6 +505,7 @@ void TestSearchServer()
     RUN_TEST(TestAverageRating);
     RUN_TEST(TestStatus);
     RUN_TEST(TestPredicateFilter);
+    RUN_TEST(TestCorrectRelevanceCount);
 }
 
 int main()
