@@ -96,7 +96,7 @@ public:
             {
                 if (!IsValidSymbol(word))
                 {
-                    throw invalid_argument( "Invalid word format or forbidden symbols have been added"s );
+                    throw invalid_argument( "Invalid word"s + word + "has been added" );
                 }
             }
         }
@@ -113,12 +113,12 @@ public:
     {
         if (document_id < 0)
         {
-            throw invalid_argument( "Document id "s + to_string(document_id) + " is invalid (is negative)"s );
+            throw invalid_argument( "Document id "s + to_string(document_id) + " is invalid (is negative)" );
         }
 
         if (documents_.count(document_id) > 0)
         {
-            throw invalid_argument( "Document with such ID already exists"s );
+            throw invalid_argument( "Document with such ID"s + to_string(document_id)  + "already exists" );
         }
 
         vector<string> words =  SplitIntoWordsNoStop(document);
@@ -135,10 +135,6 @@ public:
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const
     {
         const Query query = ParseQuery(raw_query);
-        if (!IsSpaceAfterMinus(raw_query))
-         {
-            throw invalid_argument( "Extra space after minus is not allowed"s );
-         }
 
         auto matched_documents = FindAllDocuments(query, document_predicate);
         sort(matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs)
@@ -186,11 +182,7 @@ public:
     {
         Query query = ParseQuery((raw_query));
         vector<string> matched_words;
-        optional <tuple<vector<string>, DocumentStatus>> temp;
-        if (!IsSpaceAfterMinus(raw_query))
-        {
-            throw invalid_argument( "Extra space after minus is not allowed"s );
-        }
+        tuple<vector<string>, DocumentStatus> temp;
 
         for (const string& word : query.plus_words)
         {
@@ -237,15 +229,24 @@ private:
     }
     bool IsSpaceAfterMinus(const string& text) const
     {
-        bool minus = false;
-        return !(text.back() == '-');
-
-        for (char c : text)
-        {
-             return !((c == '-') ? (minus = true) : (c == ' ') && (minus == true));
-        }
-        return true;
-    }
+         bool minus = false;
+         for (char c : text)
+         {
+             if (c == '-')
+             {
+                 minus = true;
+             }
+             else
+             {
+                 if ((c == ' ') && (minus == true))
+                 {
+                     return false;
+                 }
+                 minus = false;
+             }
+         }
+         return true;
+      }
 
     static bool IsValidSymbol(const string& text)
     {
@@ -255,23 +256,11 @@ private:
         }));
     }
 
-    static bool IsValidWord(const string& word)
-    {
-        return none_of(word.begin(), word.end(), [](char c)
-        {
-            return c >= '\0' && c < ' ';
-        });
-    }
-
     vector<string> SplitIntoWordsNoStop(const string& text) const
     {
         vector<string> words;
         for (const string& word : SplitIntoWords(text))
         {
-            if (!IsValidWord(word))
-            {
-                throw invalid_argument( "Word "s + word + " is invalid"s );
-            }
             if (!IsValidSymbol(word))
             {
                 throw invalid_argument( "Invalid word format or forbidden symbols"s + word + "have been added"s );
@@ -303,13 +292,17 @@ private:
 
     QueryWord ParseQueryWord(string text) const
     {
+        if (!IsSpaceAfterMinus(text))
+        {
+            throw invalid_argument( "Extra space after minus is not allowed" );
+        }
         bool is_minus = false;
         if (text[0] == '-')
         {
             is_minus = true;
             text = text.substr(1);
         }
-        if (text[0] == '-')
+        if (text.empty() || text[0] == '-')
         {
             throw invalid_argument( "Parsing query "s + text + " is invalid (extra minus in front)"s );
         }
