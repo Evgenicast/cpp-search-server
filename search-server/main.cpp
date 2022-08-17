@@ -180,9 +180,8 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const
     {
-        Query query = ParseQuery((raw_query));
+        const Query query = ParseQuery((raw_query));
         vector<string> matched_words;
-        tuple<vector<string>, DocumentStatus> temp;
 
         for (const string& word : query.plus_words)
         {
@@ -208,7 +207,7 @@ public:
                 break;
             }
         }
-        return  {matched_words, documents_.at(document_id).status};
+        return {matched_words, documents_.at(document_id).status};
     }
 
 private:
