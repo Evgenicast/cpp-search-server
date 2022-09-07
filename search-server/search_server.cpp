@@ -46,6 +46,7 @@ bool SearchServer::IsValidSymbol(const std::string &text)
 
 std::vector<std::string> SearchServer::SplitIntoWordsNoStop(const std::string &text) const
 {
+    using namespace std::literals::string_literals;
     std::vector<std::string> words;
     for (const std::string& word : SplitIntoWords(text))
     {
@@ -99,6 +100,7 @@ SearchServer::Query SearchServer::ParseQuery(const std::string &text) const
 
 SearchServer::QueryWord SearchServer::ParseQueryWord(std::string text) const
 {
+    using namespace std::literals::string_literals;
     if (!IsSpaceAfterMinus(text))
     {
         throw std::invalid_argument( "Extra space after minus is not allowed" );
@@ -124,6 +126,7 @@ SearchServer::QueryWord SearchServer::ParseQueryWord(std::string text) const
 
 void SearchServer::AddDocument(int document_id, const std::string& document, DocumentStatus status, const std::vector<int>& ratings)
 {
+    using namespace std::literals::string_literals;
     if (document_id < 0)
     {
         throw std::invalid_argument( "Document id "s + std::to_string(document_id) + " is invalid (is negative)" );
@@ -150,6 +153,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string &raw_quer
     {
         return document_status == status;
     });
+
 }
 
 std::vector<Document> SearchServer::FindTopDocuments(const std::string &raw_query) const

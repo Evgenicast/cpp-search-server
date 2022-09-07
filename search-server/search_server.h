@@ -1,4 +1,5 @@
 #pragma once
+#pragma once
 #include "document.h"
 #include "paginator.h"
 #include "read_input_functions.h"
@@ -13,7 +14,7 @@
 #include <algorithm>
 
 
-using namespace std::literals::string_literals;
+//using namespace std::literals::string_literals;
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 const double EPSILON = 1e-6;
 
@@ -58,7 +59,9 @@ private:
     template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const;
 
+
 public:
+
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words);
     explicit SearchServer(const std::string& stop_words_text);
@@ -77,23 +80,19 @@ public:
 };
 
 template <typename StringContainer>
-std::set<std::string> SearchServer::MakeUniqueNonEmptyStrings(const StringContainer& strings)
-{
-    std::set<std::string> non_empty_strings;
-    for (const std::string& str : strings)
-    {
-        if (!str.empty())
-        {
-            non_empty_strings.insert(str);
-        }
-    }
-    return non_empty_strings;
-}
+std::set<std::string> MakeUniqueNonEmptyStrings(const StringContainer& strings);
+
+//Этот вариант (вверху вместо MakeUniqueNonEmptyStrings )не работает - undefined reference. Я вроде уже все испробовал, в Интернете искал,
+//но не понимаю как функции "подружить. Делал без прототипа/объявления тут, тоже не работает. (( Помогите, пожалуйста, разобраться.
+// Я не знаю, можно ли Вам писать в личку на слаке? Пришлось тут комментарии писать и комитить нерабочий вариант. Прошу за это меня простить.
+//Спасибо больше за замечания. Постараюсь все выполнить.
+//С уважением, Гребенников Евгений.
 
 template <typename StringContainer>
 SearchServer::SearchServer(const StringContainer& stop_words)
     : stop_words_(MakeUniqueNonEmptyStrings(stop_words))
 {
+    using namespace std::literals::string_literals;
     for (const auto& word : stop_words)
     {
         if (!IsValidSymbol(word))
