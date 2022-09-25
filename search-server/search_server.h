@@ -1,12 +1,10 @@
 #pragma once
-#pragma once
 #include "document.h"
 #include "paginator.h"
 #include "read_input_functions.h"
 #include "string_processing.h"
 
 #include <string>
-#include <stdexcept>
 #include <vector>
 #include <set>
 #include <map>
@@ -14,7 +12,7 @@
 #include <algorithm>
 
 
-//using namespace std::literals::string_literals;
+using namespace std::literals::string_literals;
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 const double EPSILON = 1e-6;
 
@@ -29,8 +27,9 @@ private:
 
     const std::set<std::string> stop_words_;
     std::map<std::string, std::map<int, double>> word_to_document_freqs_;
+    std::map<int, std::map<std::string, double>> freqs_by_id_;//2 done
     std::map<int, DocumentData> documents_;
-    std::vector<int> document_ids_;
+    std::set<int> document_ids_;
 
     bool IsStopWord(const std::string& word) const;
     bool IsSpaceAfterMinus(const std::string& text) const;
@@ -59,9 +58,8 @@ private:
     template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const;
 
-
 public:
-
+    SearchServer(){};
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words);
     explicit SearchServer(const std::string& stop_words_text);
@@ -75,24 +73,42 @@ public:
     std::vector<Document> FindTopDocuments(const std::string& raw_query, DocumentStatus status) const;
     std::vector<Document> FindTopDocuments(const std::string& raw_query) const;
     int GetDocumentCount() const;
-    int GetDocumentId(int index) const;
+    //int GetDocumentId(int index) const; 1// done
     std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query, int document_id) const;
+
+    auto begin() const //1 added
+    {
+        return document_ids_.begin();
+    }
+
+    auto end() const
+    {
+        return document_ids_.end();
+    }
+
+    const std::map<std::string, double>& GetWordFrequencies(int document_id) const;//2 done
+    void RemoveDocument(int document_id);// 3 done
+
 };
 
 template <typename StringContainer>
-std::set<std::string> MakeUniqueNonEmptyStrings(const StringContainer& strings);
-
-//Этот вариант (вверху вместо MakeUniqueNonEmptyStrings )не работает - undefined reference. Я вроде уже все испробовал, в Интернете искал,
-//но не понимаю как функции "подружить. Делал без прототипа/объявления тут, тоже не работает. (( Помогите, пожалуйста, разобраться.
-// Я не знаю, можно ли Вам писать в личку на слаке? Пришлось тут комментарии писать и комитить нерабочий вариант. Прошу за это меня простить.
-//Спасибо больше за замечания. Постараюсь все выполнить.
-//С уважением, Гребенников Евгений.
+std::set<std::string> SearchServer::MakeUniqueNonEmptyStrings(const StringContainer& strings)
+{
+    std::set<std::string> non_empty_strings;
+    for (const std::string& str : strings)
+    {
+        if (!str.empty())
+        {
+            non_empty_strings.insert(str);
+        }
+    }
+    return non_empty_strings;
+}
 
 template <typename StringContainer>
 SearchServer::SearchServer(const StringContainer& stop_words)
     : stop_words_(MakeUniqueNonEmptyStrings(stop_words))
 {
-    using namespace std::literals::string_literals;
     for (const auto& word : stop_words)
     {
         if (!IsValidSymbol(word))
@@ -134,6 +150,7 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query, Documen
             document_to_relevance.erase(document_id);
         }
     }
+
     std::vector<Document> matched_documents;
     for (const auto& [document_id, relevance] : document_to_relevance)
     {
@@ -159,6 +176,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
             return lhs.relevance > rhs.relevance;
         }
     });
+
     if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT)
     {
         matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);

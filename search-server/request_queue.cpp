@@ -1,11 +1,9 @@
 #include "request_queue.h"
 
 RequestQueue::RequestQueue(const SearchServer &search_server)
-    : search_(search_server)
-{
-}
+    : search_(search_server){}
 
-std::vector<Document> RequestQueue::AddFindRequest(const std::string &raw_query, DocumentStatus status)
+std::vector<Document> RequestQueue::AddFindRequest(const std::string &raw_query, [[maybe_unused]]DocumentStatus status)
 {
     const auto doc = search_.FindTopDocuments(raw_query);
     if ((int)requests_.size() == min_in_day_)

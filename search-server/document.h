@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 
 enum class DocumentStatus {
     ACTUAL,
@@ -18,6 +17,3 @@ public:
     Document();
     Document(int id, double relevance, int rating);
 };
-
-void PrintDocument(const Document& document);
-std::ostream& operator<<(std::ostream& out, const Document& document);
