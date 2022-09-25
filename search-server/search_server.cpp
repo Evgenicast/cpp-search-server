@@ -5,7 +5,9 @@
 
 //------------------constructors--------------//
 SearchServer::SearchServer(const std::string &stop_words_text)
-    : SearchServer(SplitIntoWords(stop_words_text)){}
+{
+    SetStopWords(SplitIntoWords(stop_words_text));
+}
 
 //--------------------private methods------------------//
 
@@ -14,28 +16,7 @@ bool SearchServer::IsStopWord(const std::string &word) const
     return stop_words_.count(word) > 0;
 }
 
-bool SearchServer::IsSpaceAfterMinus(const std::string &text) const
-{
-    bool minus = false;
-    for (char c : text)
-    {
-        if (c == '-')
-        {
-            minus = true;
-        }
-        else
-        {
-            if ((c == ' ') && (minus == true))
-            {
-                return false;
-            }
-            minus = false;
-        }
-    }
-    return true;
-}
-
-bool SearchServer::IsValidSymbol(const std::string &text)
+bool SearchServer::IsValidSymbol(const std::string &text) const
 {
     return (std::none_of(text.begin(), text.end(), [text](char x)
     {
@@ -45,8 +26,9 @@ bool SearchServer::IsValidSymbol(const std::string &text)
 
 std::vector<std::string> SearchServer::SplitIntoWordsNoStop(const std::string &text) const
 {
+    using namespace std::literals::string_literals;
     std::vector<std::string> words;
-    for (const std::string& word : SplitIntoWords(text))
+    for (std::string& word : SplitIntoWords(text))
     {
         if (!IsValidSymbol(word))
         {
@@ -98,9 +80,10 @@ SearchServer::Query SearchServer::ParseQuery(const std::string &text) const
 
 SearchServer::QueryWord SearchServer::ParseQueryWord(std::string text) const
 {
-    if (!IsSpaceAfterMinus(text))
+    using namespace std::literals::string_literals;
+    if (text.empty()) // проверка убрана.
     {
-        throw std::invalid_argument( "Extra space after minus is not allowed" );
+        throw std::invalid_argument( "Query word is empty" );
     }
     bool is_minus = false;
     if (text[0] == '-')
@@ -116,13 +99,14 @@ SearchServer::QueryWord SearchServer::ParseQueryWord(std::string text) const
     {
         throw std::invalid_argument( "Query "s + text + " is invalid (contains forbidden symbols)"s );
     }
-    return QueryWord{text, is_minus, IsStopWord(text)};
+    return {text, is_minus, IsStopWord(text)}; // убран тип кортежа.
 }
 
 //---------------------public methods----------------------------//
 
 void SearchServer::AddDocument(int document_id, const std::string& document, DocumentStatus status, const std::vector<int>& ratings)
 {
+    using namespace std::literals::string_literals;
     if (document_id < 0)
     {
         throw std::invalid_argument( "Document id "s + std::to_string(document_id) + " is invalid (is negative)" );
@@ -196,21 +180,21 @@ std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument
 
 const std::map<std::string, double> &SearchServer::GetWordFrequencies(int document_id) const
 {
-    static std::map<std::string, double> tmp_;
+    static std::map<std::string, double> empty_map;
     const auto iter = freqs_by_id_.find(document_id);
 
     if (iter == freqs_by_id_.end())
     {
-        return tmp_;
+        return empty_map;
     }
     return iter->second;
 }
 
 void SearchServer::RemoveDocument(int document_id)
 {
-    for (auto & word : word_to_document_freqs_)
+    for (const auto & [word, freq] : freqs_by_id_[document_id])
     {
-        word.second.erase(document_id);
+        word_to_document_freqs_[word].erase(document_id);
     }
 
     document_ids_.erase(document_id);

@@ -12,7 +12,6 @@
 #include <algorithm>
 
 
-using namespace std::literals::string_literals;
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 const double EPSILON = 1e-6;
 
@@ -25,15 +24,17 @@ private:
         DocumentStatus status;
     };
 
-    const std::set<std::string> stop_words_;
+    std::set<std::string> stop_words_;
     std::map<std::string, std::map<int, double>> word_to_document_freqs_;
-    std::map<int, std::map<std::string, double>> freqs_by_id_;//2 done
+    std::map<int, std::map<std::string, double>> freqs_by_id_;   //2 done
     std::map<int, DocumentData> documents_;
     std::set<int> document_ids_;
 
+    template <typename StringCollection>
+    void SetStopWords(const StringCollection& stop_words);
+
     bool IsStopWord(const std::string& word) const;
-    bool IsSpaceAfterMinus(const std::string& text) const;
-    static bool IsValidSymbol(const std::string& text);
+    bool IsValidSymbol(const std::string& text) const;
     std::vector<std::string> SplitIntoWordsNoStop(const std::string& text) const;
     static int ComputeAverageRating(const std::vector<int>& ratings);
 
@@ -63,20 +64,20 @@ public:
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words);
     explicit SearchServer(const std::string& stop_words_text);
-    template <typename StringContainer>
-    std::set<std::string> MakeUniqueNonEmptyStrings(const StringContainer& strings);
 
     void AddDocument(int document_id, const std::string& document, DocumentStatus status, const std::vector<int>& ratings);
 
     template <typename DocumentPredicate>
     std::vector<Document> FindTopDocuments(const std::string& raw_query, DocumentPredicate document_predicate) const;
+
     std::vector<Document> FindTopDocuments(const std::string& raw_query, DocumentStatus status) const;
+
     std::vector<Document> FindTopDocuments(const std::string& raw_query) const;
+
     int GetDocumentCount() const;
-    //int GetDocumentId(int index) const; 1// done
     std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query, int document_id) const;
 
-    auto begin() const //1 added
+    auto begin() const   //1 done
     {
         return document_ids_.begin();
     }
@@ -86,36 +87,41 @@ public:
         return document_ids_.end();
     }
 
-    const std::map<std::string, double>& GetWordFrequencies(int document_id) const;//2 done
-    void RemoveDocument(int document_id);// 3 done
+    const std::map<std::string, double>& GetWordFrequencies(int document_id) const;   //2 done
+    void RemoveDocument(int document_id);   // 3 done
 
 };
-
-template <typename StringContainer>
-std::set<std::string> SearchServer::MakeUniqueNonEmptyStrings(const StringContainer& strings)
+//author's "MakeUnique" was removed and my old method SetStopWords was reinstated
+template <typename StringCollection>
+void SearchServer::SetStopWords(const StringCollection& stop_words)
 {
-    std::set<std::string> non_empty_strings;
-    for (const std::string& str : strings)
+    using std::string_literals::operator""s;
+
+    for (const std::string& word : stop_words)
     {
-        if (!str.empty())
+        if (word != ""s)
         {
-            non_empty_strings.insert(str);
+            if (!IsValidSymbol(word))
+            {
+                throw std::invalid_argument( "Invalid word"s + word + "has been added"s );
+            }
+            if (word == "-" || word[1] == '-')
+            {
+                throw std::invalid_argument( "Invalid stop words"s  + word + "found"s );
+            }
+            stop_words_.insert(std::string(word));
+        }
+        else
+        {
+            throw std::invalid_argument( "Empty string was passed to vector"s );
         }
     }
-    return non_empty_strings;
 }
 
-template <typename StringContainer>
-SearchServer::SearchServer(const StringContainer& stop_words)
-    : stop_words_(MakeUniqueNonEmptyStrings(stop_words))
+template <typename StringCollection>
+SearchServer::SearchServer(const StringCollection& stop_words)
 {
-    for (const auto& word : stop_words)
-    {
-        if (!IsValidSymbol(word))
-        {
-            throw std::invalid_argument( "Invalid word"s + word + "has been added" );
-        }
-    }
+    SetStopWords(stop_words);
 }
 
 template <typename DocumentPredicate>
@@ -183,3 +189,4 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
     }
     return matched_documents;
 }
+

@@ -31,3 +31,4 @@ void RemoveDuplicates(SearchServer &search_server)
         search_server.RemoveDocument(doc);
     }
 }
+//Спасибо большое за высокую оценку! Вынужден признаться - часть решения нашел в Интернете.
