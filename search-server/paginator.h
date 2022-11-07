@@ -10,11 +10,7 @@ private:
     size_t size_;
 public:
     IteratorRange(Iterator begin, Iterator end)
-        : first_(begin)
-        , last_(end)
-        , size_(distance(first_, last_))
-    {
-    }
+        : first_(begin), last_(end), size_(distance(first_, last_)){}
 
     Iterator begin() const
     {

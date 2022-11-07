@@ -1,10 +1,14 @@
 #pragma once
 
+#include "paginator.h"
+#include "document.h"
+#include "remove_duplicates.h"
 #include "search_server.h"
 
 #include <vector>
 #include <string>
 #include <iostream>
+#include <tuple>
 
 using std::string_literals::operator""s;
 
@@ -31,6 +35,7 @@ void AssertEqualImpl(const T& t, const U& u, const std::string& t_str, const std
             std::cerr << " Hint: "s << hint;
         }
         std::cerr << std::endl;
+        abort();
     }
 }
 
