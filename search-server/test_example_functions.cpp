@@ -239,4 +239,3 @@ void TestCorrectRelevanceCount() {
         ASSERT (doc0.relevance > doc1.relevance || doc0.rating > doc1.rating);
     }
 }
-

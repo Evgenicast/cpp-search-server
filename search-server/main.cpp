@@ -62,7 +62,7 @@ void Test(string_view mark, const SearchServer& search_server, const vector<stri
     cout << total_relevance << endl;
 }
 #define TEST(policy) Test(#policy, search_server, queries, execution::policy)
-void PrintDocument(const Document& document) {
+void PrintDocument2(const Document& document) {
     cout << "{ "s
          << "document_id = "s << document.id << ", "s
          << "relevance = "s << document.relevance << ", "s
@@ -84,17 +84,17 @@ int main() {
     cout << "ACTUAL by default:"s << endl;
     // последовательная версия
     for (const Document& document : search_server.FindTopDocuments("curly nasty cat"s)) {
-        PrintDocument(document);
+        PrintDocument2(document);
     }
     cout << "BANNED:"s << endl;
     // последовательная версия
     for (const Document& document : search_server.FindTopDocuments(execution::seq, "curly nasty cat"s, DocumentStatus::BANNED)) {
-        PrintDocument(document);
+        PrintDocument2(document);
     }
     cout << "Even ids:"s << endl;
     // параллельная версия
     for (const Document& document : search_server.FindTopDocuments(execution::par, "curly nasty cat"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; })) {
-        PrintDocument(document);
+        PrintDocument2(document);
     }
 
     mt19937 generator;

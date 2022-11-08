@@ -25,6 +25,8 @@ const double EPSILON = 1e-6;
 class SearchServer
 {
 private:
+    //------------------DATA-----------------//
+
     struct DocumentData
     {
         int rating;
@@ -51,6 +53,8 @@ private:
     std::map<int, DocumentData> documents_;
     std::set<int> document_ids_;
 
+    //------------------METHODS-----------------//
+
     template <typename StringCollection>
     void SetStopWords(const StringCollection& stop_words);
 
@@ -58,26 +62,32 @@ private:
     bool IsValidWord(const std::string_view& word) const;
     std::vector<std::string_view> SplitIntoWordsNoStop(const std::string_view& text) const;
     static int ComputeAverageRating(const std::vector<int>& ratings);
-    QueryWord ParseQueryWord(const std::string_view& text) const;
+    QueryWord ParseQueryWord(const std::string_view text) const;
 
     template <typename ExecutionPolicy>
-    Query ParseQuery(const ExecutionPolicy& policy, const std::string_view& text) const;
+    Query ParseQuery(const ExecutionPolicy& policy, const std::string_view& text, bool SwitchSortAndNoDubs = true) const; // Спасибо за отличную идею! Надеюсь, ничего не упустил.
     Query ParseQuery(const std::string_view& text) const;
     double ComputeWordInverseDocumentFreq(const std::string_view& word) const;
 
     template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const std::execution::parallel_policy& policy, const Query& query, DocumentPredicate document_predicate) const;
     template <typename DocumentPredicate>
+    std::vector<Document> FindAllDocuments(const std::execution::sequenced_policy& policy, const Query &query, DocumentPredicate document_predicate) const;
+    template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const;
 
     void SortAndRemoveDublicates(std::vector<std::string_view>& dummy) const;
 
 public:
+    //------------------CONSTRUCTORS-----------------//
     SearchServer(){}
 
     template <typename StringCollection>
     explicit SearchServer(const StringCollection& stop_words);
     explicit SearchServer(const std::string& stop_words);
+    explicit SearchServer(std::string_view stop_words);
+
+    //------------------METHODS-----------------//
 
     void AddDocument(int document_id, const std::string_view& document, DocumentStatus status, const std::vector<int>& ratings);
 
@@ -91,9 +101,24 @@ public:
     template <typename ExecutionPolicy>
     std::vector<Document> FindTopDocuments(const ExecutionPolicy& policy, const std::string_view& raw_query, DocumentStatus status) const;
     template <typename ExecutionPolicy>
-    std::vector<Document> FindTopDocuments(const ExecutionPolicy& policy, const std::string_view& raw_query) const;
+    std::vector<Document> FindTopDocuments(const ExecutionPolicy& policy, const std::string_view& raw_query) const;   
 
-    auto begin() const   //1 done
+    using MatchDocumentResult = std::tuple<std::vector<std::string_view>, DocumentStatus>;
+    MatchDocumentResult MatchDocument(std::execution::parallel_policy, std::string_view raw_query, int document_id) const;
+    MatchDocumentResult MatchDocument(std::execution::sequenced_policy, std::string_view raw_query, int document_id) const;
+    MatchDocumentResult MatchDocument(std::string_view raw_query, int document_id) const;
+
+    void RemoveDocument(int document_id);
+    void RemoveDocument(const std::execution::parallel_policy&, int document_id);
+    void RemoveDocument(const std::execution::sequenced_policy&, int document_id);
+
+    //------------------GETS-----------------//
+
+    size_t GetDocumentCount() const;
+    const std::map<std::string, double>& GetWordFrequencies(int document_id) const;
+
+    //------------------ITERATORS-----------------//
+    auto begin() const
     {
         return document_ids_.begin();
     }
@@ -102,19 +127,6 @@ public:
     {
         return document_ids_.end();
     }
-
-    size_t GetDocumentCount() const;
-
-    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(std::execution::parallel_policy, std::string_view raw_query, int document_id) const;
-    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(std::execution::sequenced_policy, std::string_view raw_query, int document_id) const;
-    std::tuple<std::vector<std::string_view>, DocumentStatus> MatchDocument(std::string_view raw_query, int document_id) const;
-
-    const std::map<std::string, double>& GetWordFrequencies(int document_id) const;
-
-    void RemoveDocument(int document_id);   // 3 done
-    void RemoveDocument(const std::execution::parallel_policy&, int document_id);
-    void RemoveDocument(const std::execution::sequenced_policy&, int document_id);
-
 };
 
 void AddDocument(SearchServer& search_server, int document_id, const std::string_view& document, DocumentStatus status, const std::vector<int>& ratings);
@@ -133,10 +145,6 @@ void SearchServer::SetStopWords(const StringCollection& stop_words)
             if (!IsValidWord(word))
             {
                 throw std::invalid_argument( "Invalid word"s + (std::string)word + "has been added"s );
-            }
-            if (word == "-" || word[1] == '-')
-            {
-                throw std::invalid_argument( "Invalid stop words"s  + (std::string)word + "found"s );
             }
             stop_words_.insert(std::string(word));
         }
@@ -187,7 +195,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const ExecutionPolicy& poli
 template <typename ExecutionPolicy>
 std::vector<Document> SearchServer::FindTopDocuments(const ExecutionPolicy& policy, const std::string_view& raw_query, DocumentStatus status) const
 {
-    return FindTopDocuments(policy, raw_query, [status](int document_id, DocumentStatus document_status, int rating)
+    return FindTopDocuments(policy, raw_query, [&status]([[__maybe_unused__]]int document_id, DocumentStatus document_status,[[__maybe_unused__]] int rating)
     {
         return document_status == status;
     });
@@ -270,8 +278,8 @@ std::vector<Document> SearchServer::FindAllDocuments(const std::execution::paral
     return matched_documents;
 }
 
-template <typename DocumentPredicate>
-std::vector<Document> SearchServer::FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const
+template<typename DocumentPredicate>
+std::vector<Document> SearchServer::FindAllDocuments([[__maybe_unused__]]const __pstl::execution::sequenced_policy& policy, const Query &query, DocumentPredicate document_predicate) const
 {
     std::map<int, double> document_to_relevance;
 
@@ -312,20 +320,24 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query, Documen
     return matched_documents;
 }
 
+template <typename DocumentPredicate>
+std::vector<Document> SearchServer::FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const
+{
+    return FindAllDocuments(std::execution::seq, query, document_predicate);
+}
+
 template <typename ExecutionPolicy>
-SearchServer::Query SearchServer::ParseQuery([[__maybe_unused__]]const ExecutionPolicy& policy, const std::string_view& text) const
+SearchServer::Query SearchServer::ParseQuery([[__maybe_unused__]]const ExecutionPolicy& policy, const std::string_view& text,[[__maybe_unused__]] bool SwitchSortAndNoDubs) const
 {
     Query result;
     auto& min_words = result.minus_words;
     auto& pls_words = result.plus_words;
 
     auto words = SplitIntoWords(text);
-    if constexpr (!std::is_same<typename std::decay<ExecutionPolicy>::type, std::execution::parallel_policy>::value)
-    {
-        SortAndRemoveDublicates(words);
-    }
 
-    for (const std::string_view& word : words)
+    SortAndRemoveDublicates(words);
+
+    for (const std::string_view word : words)
     {
         const auto& query_word = ParseQueryWord(word);
         if (!query_word.is_stop)

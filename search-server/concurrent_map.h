@@ -59,15 +59,15 @@ public:
 
 	std::map<Key, Value> BuildOrdinaryMap()
 	{
-        std::map<Key, Value> MergedMap;
+        std::map<Key, Value> joint_map;
 
 		for (size_t i = 0; i < buckets.size(); ++i)
 		{
             auto& bucket = buckets[i];
 			std::lock_guard<std::mutex> guard(bucket.m);
-            MergedMap.merge(bucket.dict);
+            joint_map.merge(bucket.dict);
 		}
 
-        return MergedMap;
+        return joint_map;
 	}
 };
